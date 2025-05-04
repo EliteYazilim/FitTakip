@@ -12,7 +12,7 @@ router.get("/users", async (req, res) => {
         res.json(users); // Cevap dönmeyi unutmamalısın
     } catch (error) {
         res.status(500).json({ error: "Sunucu hatası" });
-    }password
+    }
 });
 
 // add User
