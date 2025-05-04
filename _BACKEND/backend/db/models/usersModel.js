@@ -4,7 +4,7 @@ const schema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     username: { type: String, required: true, unique: true },
-    mealModels: { type: String },
+    isActive: { type: Boolean, required: true, default: true },
     weight: { type: Number, required: true },
     height: { type: Number, required: true },
     age: { type: Number, required: true },
