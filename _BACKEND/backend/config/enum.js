@@ -19,6 +19,12 @@ const Enum = {
         INT_SERVER_ERROR: 500,
         BAD_GATEWAY: 502,
     },
+    ERRORS: {
+        USER_NOT_FOUND: "Kullanıcı bulunamadı.",
+        INVALID_PASSWORD: "Şifre hatalı.",
+        JWT_SECRET_MISSING: "JWT_SECRET tanımlı değil.",
+        SYSTEM_ERROR: "Sistemsel hata. Lütfen daha sonra tekrar deneyin."
+    },
     PASSWORD_LENGTH: 8,
     SUPER_ADMIN: "SUPER_ADMIN",
     LOG_LEVELS: {

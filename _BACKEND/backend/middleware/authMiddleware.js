@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
-import Enum from "../config/enum";
+import Enum from "../config/enum.js";
 
 dotenv.config();
 

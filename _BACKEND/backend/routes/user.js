@@ -1,14 +1,15 @@
 import express from "express";
 import Users from "../db/models/usersModel.js";
-import bcrypt from 'bcryptjs'
-import validator from "validator"
+import bcrypt from 'bcryptjs';
+import validator from "validator";
 import Response from "../lib/response.js";
 import Enum from "../config/enum.js";
+import CustomError from "../lib/error.js";
 
 const router = express.Router();
 
-// get Users
-router.get("/users", async (req, res) => {
+// Tüm kullanıcıları getir
+router.get("/", async (req, res) => {
     try {
         const users = await Users.find({});
         res.json(Response.successResponse(users));
@@ -17,30 +18,27 @@ router.get("/users", async (req, res) => {
     }
 });
 
-// add User
-router.post("/userAdd", async (req, res) => {
+// Yeni kullanıcı oluştur
+router.post("/", async (req, res) => {
     const body = req.body;
     try {
-
-        // Email kontrolü
         if (!body.email) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "Email alanı dolu olmalı!");
         if (!validator.isEmail(body.email)) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "Email doğru bir formatta olmalı!");
 
-        // Şifre kontrolü
         if (!body.password) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "Şifre alanı dolu olmalı!");
         if (body.password.length < Enum.PASSWORD_LENGTH) {
             throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", `Şifre uzunluğu en az ${Enum.PASSWORD_LENGTH} olmalı!`);
         }
 
-        // Kullanıcı var mı kontrolü
         const existingUserMail = await Users.findOne({ email: body.email });
-        if (existingUserMail) {
-            throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "User Exists", "Bu email'e sahip bir kullanıcı zaten var!");
-        }
+        if (existingUserMail) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "User Exists", "Bu email'e sahip bir kullanıcı zaten var!");
+
+        const existingUsername = await Users.findOne({ username: body.username });
+        if (existingUsername) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "User Exists", "Bu kullanıcı adı zaten kullanımda!");
 
         const hashedPassword = bcrypt.hashSync(body.password, bcrypt.genSaltSync(8));
 
-        let user = await Users.create({
+        await Users.create({
             email: body.email,
             password: hashedPassword,
             username: body.username,
@@ -59,19 +57,23 @@ router.post("/userAdd", async (req, res) => {
     }
 });
 
-router.post("/userUpdate", async (req, res) => {
+// Kullanıcı güncelle
+router.put("/:id", async (req, res) => {
+    const { id } = req.params; 
     const body = req.body;
-
+    
     try {
+        let updates = {};
 
-        let updates = {}
+        // ID kontrolü
+        if (!id) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "_id alanı dolu olmalı!");
 
-        if (!body._id) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "validation error!", "_id alanı dolu olmalı!")
-
+        // Eğer şifre varsa, uzunluğunu kontrol et ve hashle
         if (body.password && body.password.length >= Enum.PASSWORD_LENGTH) {
             updates.password = bcrypt.hashSync(body.password, bcrypt.genSaltSync(8));
         }
 
+        // Güncellenecek diğer alanlar
         if (typeof body.isActive === "boolean") updates.isActive = body.isActive;
         if (body.email && validator.isEmail(body.email)) updates.email = body.email;
         if (body.username) updates.username = body.username;
@@ -82,29 +84,38 @@ router.post("/userUpdate", async (req, res) => {
         if (body.goal) updates.goal = body.goal;
         if (body.activityLevel) updates.activityLevel = body.activityLevel;
 
-        await Users.updateOne({ _id: body._id }, updates);
+        // Kullanıcıyı güncelle
+        const result = await Users.updateOne({ _id: id }, updates);
 
-        res.json(Response.successResponse({ success: true }))
-    } catch (error) {
-        const errorRes = Response.errorResponse(error);
-        res.status(errorRes.code).json(errorRes);
-    }
-});
+        // Eğer ID'ye sahip kullanıcı bulunamadıysa
+        if (result.matchedCount === 0) {
+            throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Kullanıcı bulunamadı!", "_id eşleşmedi.");
+        }
 
-router.post("/userDelete", async (req, res) => {
-    try {
-        const body = req.body;
+        // Güncelleme yapılmışsa
+        if (result.modifiedCount === 0) {
+            return res.json(Response.successResponse({ success: false, message: "Veri zaten güncel." }));
+        }
 
-        if (!body._id) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "_id alanı dolu olmalı!");
-
-        await Users.deleteOne({ _id: body._id });
-
-        res.json(Response.successResponse({ success: true }));
-
+        res.json(Response.successResponse({ success: true, modified: result.modifiedCount > 0 }));
     } catch (err) {
         const errorRes = Response.errorResponse(err);
         res.status(errorRes.code).json(errorRes);
     }
-})
+});
+
+router.delete("/:id", async (req, res) => {
+    try {
+        const userId = req.params.id;
+        if (!userId) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "Kullanıcı ID gerekli!");
+
+        await Users.deleteOne({ _id: userId });
+
+        res.json(Response.successResponse({ success: true }));
+    } catch (err) {
+        const errorRes = Response.errorResponse(err);
+        res.status(errorRes.code).json(errorRes);
+    }
+});
 
 export default router;

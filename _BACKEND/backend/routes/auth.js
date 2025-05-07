@@ -47,22 +47,23 @@ router.post("/register", async (req, res) => {
 
 // Giriş
 router.post("/login", async (req, res) => {
-    const { identifier, password } = req.body; // Tek alanla giriş: username veya email
+    const { identifier, password } = req.body;
+
+    console.log("Gelen identifier:", identifier);
 
     const user = await Users.findOne({
-        $or: [
-            { email: identifier },
-            { username: identifier }
-        ]
+        $or: [{ email: identifier }, { username: identifier }]
     });
 
-    if (!user) return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Kullanıcı bulunamadı." });
+    if (!user) {
+        return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Kullanıcı bulunamadı." });
+    }
+
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Şifre hatalı." });
-
-    if (!process.env.JWT_SECRET) {
-        return res.status(500).json({ message: "JWT_SECRET tanımlı değil." });
+    if (!isMatch) {
+        console.log("Şifre hatalı:", password);
+        return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Şifre hatalı." });
     }
 
     const token = jwt.sign(
@@ -71,7 +72,9 @@ router.post("/login", async (req, res) => {
         { expiresIn: '1h' }
     );
 
+    console.log("Token oluşturuldu:", token);
     res.json({ token });
 });
+
 
 export default router;
