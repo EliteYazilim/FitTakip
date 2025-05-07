@@ -18,7 +18,6 @@ router.get("/users", async (req, res) => {
 // add User
 router.post("/userAdd", async (req,res) => {
     const body = req.body;
-
     try {
         const hashedPassword = bcrypt.hashSync(body.password, bcrypt.genSaltSync(8));
 
