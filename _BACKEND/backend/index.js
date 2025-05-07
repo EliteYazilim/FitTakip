@@ -4,37 +4,42 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import authMiddleware from "./middleware/authMiddleware.js";
 
 dotenv.config();
 
 const app = express();
+app.use(express.json());
 
-// dosya isimlerini alıyor
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// örnek "http://localhost:3000/api/users"
-// Route'ları dinamik olarak yükleyen fonksiyon
+// Korunan bir rota örneği
+app.get("/protected", authMiddleware, (req, res) => {
+    res.json({ message: `Hoşgeldin, ${req.user.username}` });
+});
+
+// Dinamik route yükleme
 async function loadRoutes() {
     const routesPath = path.join(__dirname, "routes");
     const files = fs.readdirSync(routesPath);
 
     for (const file of files) {
         if (file.endsWith(".js")) {
+            const routeName = file.replace(".js", "");
             const routeModule = await import(`./routes/${file}`);
-            app.use("/api", routeModule.default); 
+            app.use(`/api/${routeName}`, routeModule.default);
         }
     }
 }
 
-app.use(express.json());
-
 app.get("/", (req, res) => {
-    res.send("Hello world 123!");
+    res.send("FitTakip Backend API çalışıyor!");
 });
 
 app.listen(3000, async () => {
-    connectDB();
+    await connectDB();
     await loadRoutes();
     console.log("Server is running on port 3000");
 });

@@ -20,7 +20,6 @@ router.get("/users", async (req, res) => {
 // add User
 router.post("/userAdd", async (req, res) => {
     const body = req.body;
-
     try {
 
         // Email kontrolü
