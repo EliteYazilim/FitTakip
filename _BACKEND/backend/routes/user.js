@@ -5,13 +5,23 @@ import validator from "validator";
 import Response from "../lib/response.js";
 import Enum from "../config/enum.js";
 import CustomError from "../lib/error.js";
+import checkPermission from "../middleware/checkpermission.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 // Tüm kullanıcıları getir
-router.get("/", async (req, res) => {
+router.get("/", authMiddleware, checkPermission("user_view"), async (req, res) => {
     try {
-        const users = await Users.find({});
+        const users = await Users.find({})
+            .populate({
+                path: "role",
+                model: "Roles",
+                populate: {
+                    path: "permissions",
+                    model: "Permission"
+                }
+            });
         res.json(Response.successResponse(users));
     } catch (err) {
         res.json(Response.errorResponse(err));
@@ -19,7 +29,7 @@ router.get("/", async (req, res) => {
 });
 
 // Yeni kullanıcı oluştur
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, checkPermission("user_add"), async (req, res) => {
     const body = req.body;
     try {
         if (!body.email) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "Email alanı dolu olmalı!");
@@ -42,6 +52,7 @@ router.post("/", async (req, res) => {
             email: body.email,
             password: hashedPassword,
             username: body.username,
+            role: body.role,
             weight: body.weight,
             height: body.height,
             age: body.age,
@@ -58,10 +69,10 @@ router.post("/", async (req, res) => {
 });
 
 // Kullanıcı güncelle
-router.put("/:id", async (req, res) => {
-    const { id } = req.params; 
+router.put("/:id", authMiddleware, checkPermission("user_update"), async (req, res) => {
+    const { id } = req.params;
     const body = req.body;
-    
+
     try {
         let updates = {};
 
@@ -83,7 +94,7 @@ router.put("/:id", async (req, res) => {
         if (body.gender) updates.gender = body.gender;
         if (body.goal) updates.goal = body.goal;
         if (body.activityLevel) updates.activityLevel = body.activityLevel;
-
+        if (body.role) updates.role = body.role;
         // Kullanıcıyı güncelle
         const result = await Users.updateOne({ _id: id }, updates);
 
@@ -104,7 +115,7 @@ router.put("/:id", async (req, res) => {
     }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authMiddleware, checkPermission("user_delete"), async (req, res) => {
     try {
         const userId = req.params.id;
         if (!userId) throw new CustomError(Enum.HTTP_CODES.BAD_REQUEST, "Validation Error!", "Kullanıcı ID gerekli!");

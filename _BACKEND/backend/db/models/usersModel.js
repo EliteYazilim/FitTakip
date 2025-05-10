@@ -4,6 +4,7 @@ const schema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     username: { type: String, required: true, unique: true },
+    role: { type: mongoose.Schema.Types.ObjectId, ref: "Roles" },
     isActive: { type: Boolean, required: true, default: true },
     weight: { type: Number, required: true },
     height: { type: Number, required: true },
