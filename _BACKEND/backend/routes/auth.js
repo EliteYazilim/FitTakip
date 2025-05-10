@@ -4,10 +4,25 @@ import Users from "../db/models/usersModel.js";
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import Enum from "../config/enum.js";
+import crypto from 'crypto';
+import TokenBlacklist from "../db/models/tokenBlacklistModel.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 dotenv.config();
 
 const router = express.Router();
+
+// Token oluşturma yardımcı fonksiyonu
+const generateTokens = (user) => {
+    const accessToken = jwt.sign(
+        { id: user._id, username: user.username },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+    );
+
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+    return { accessToken, refreshToken };
+};
 
 // Kayıt
 router.post("/register", async (req, res) => {
@@ -49,8 +64,6 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
     const { identifier, password } = req.body;
 
-    console.log("Gelen identifier:", identifier);
-
     const user = await Users.findOne({
         $or: [{ email: identifier }, { username: identifier }]
     });
@@ -59,22 +72,81 @@ router.post("/login", async (req, res) => {
         return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Kullanıcı bulunamadı." });
     }
 
-
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-        console.log("Şifre hatalı:", password);
         return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Şifre hatalı." });
     }
 
-    const token = jwt.sign(
-        { id: user._id, username: user.username },
-        process.env.JWT_SECRET,
-        { expiresIn: '1h' }
-    );
+    const { accessToken, refreshToken } = generateTokens(user);
 
-    console.log("Token oluşturuldu:", token);
-    res.json({ token });
+    // Refresh token'ı veritabanına kaydet
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.json({ 
+        accessToken,
+        refreshToken,
+        user: {
+            id: user._id,
+            username: user.username,
+            email: user.email
+        }
+    });
 });
 
+// Refresh token ile yeni access token alma
+router.post("/refresh-token", async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+        return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Refresh token gerekli." });
+    }
+
+    const user = await Users.findOne({ refreshToken });
+    if (!user) {
+        return res.status(Enum.HTTP_CODES.UNAUTHORIZED).json({ message: "Geçersiz refresh token." });
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+
+    // Yeni refresh token'ı veritabanına kaydet
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    res.json({ 
+        accessToken,
+        refreshToken: newRefreshToken
+    });
+});
+
+// Çıkış yap
+router.post("/logout", authMiddleware, async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        const accessToken = req.header('Authorization')?.split(' ')[1];
+
+        if (!refreshToken || !accessToken) {
+            return res.status(Enum.HTTP_CODES.BAD_REQUEST).json({ message: "Refresh token ve access token gerekli." });
+        }
+
+        // Refresh token'ı veritabanından sil
+        const user = await Users.findOne({ refreshToken });
+        if (user) {
+            user.refreshToken = null;
+            await user.save();
+        }
+
+        // Access token'ı blacklist'e ekle
+        const decoded = jwt.decode(accessToken);
+        await TokenBlacklist.create({
+            token: accessToken,
+            expiresAt: new Date(decoded.exp * 1000) // JWT exp değerini Date'e çevir
+        });
+
+        res.json({ message: "Başarıyla çıkış yapıldı." });
+    } catch (err) {
+        res.status(Enum.HTTP_CODES.INTERNAL_SERVER_ERROR).json({ message: "Çıkış yapılırken bir hata oluştu." });
+    }
+});
 
 export default router;

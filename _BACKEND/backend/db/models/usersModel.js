@@ -12,6 +12,7 @@ const schema = new mongoose.Schema({
     gender: { type: String, required: true },
     goal: { type: String, required: true },
     activityLevel: { type: String, required: true },
+    refreshToken: { type: String },
 }, {
     timestamps: {
         createdAt: "created_at",
