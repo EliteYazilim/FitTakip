@@ -1,30 +1,40 @@
 import mongoose from "mongoose";
 
-const mealModelSchema = new mongoose.Schema({
-    userID: {
+const mealSchema = new mongoose.Schema({
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "users", // users modelin exportuyla aynı.
+        ref: "User",
         required: true,
     },
-    name: { type: String, required: true },
-    time: { type: String, },
-    totalCalories: { type: Number, default: 0 },
-    mealItems: [{
-        itemType: {
-            type: String,
-            enum: ["food", "recipe"],
-            required: true,
-        },
-        itemID: {
-            type: mongoose.Schema.Types.ObjectId,
-            required: true,
-            rafPath: "mealItems.itemType",
-        },
-        quantity: {
-            type: Number,
-            default: 1,
-        },
+    name: {
+        type: String,
+        required: true,
+    },
+    foods: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Food",
+        default: []
     }],
-})
+    totalCalories: {
+        type: Number,
+        default: 0
+    },
+    totalProtein: {
+        type: Number,
+        default: 0
+    },
+    totalCarbs: {
+        type: Number,
+        default: 0
+    },
+    totalFat: {
+        type: Number,
+        default: 0
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now,
+    },
+});
 
-export default mongoose.model("mealModel", mealModelSchema)
+export default mongoose.model("Meal", mealSchema);
