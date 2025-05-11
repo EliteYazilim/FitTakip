@@ -61,7 +61,7 @@ app.get("/user/profile", authMiddleware, async (req, res) => {
 });
 
 // Hata yönetimi için merkezi bir middleware eklemek isteyebilirsiniz
-app.use((err, req, res, next) => {
+app.use((err, req, res, next) => {  
     if (process.env.NODE_ENV === "development") {
         console.error(err.stack); // Geliştirme ortamında stack trace göster
     }

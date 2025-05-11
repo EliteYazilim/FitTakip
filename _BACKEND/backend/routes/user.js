@@ -69,7 +69,7 @@ router.post("/", authMiddleware, checkPermission("user_add"), async (req, res) =
 });
 
 // Kullanıcı güncelle
-router.put("/:id", authMiddleware, checkPermission("user_update"), async (req, res) => {
+router.put("/:id",  async (req, res) => {
     const { id } = req.params;
     const body = req.body;
 

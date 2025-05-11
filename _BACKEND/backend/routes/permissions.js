@@ -81,4 +81,31 @@ router.delete("/:id", authMiddleware, checkPermission("permission_delete"), asyn
     }
 });
 
+// Bir role, permission key ile yetki ekle
+router.post("/assign-to-role", authMiddleware, async (req, res) => {
+    try {
+        const { roleId, permissionKeys } = req.body;
+        if (!roleId || !Array.isArray(permissionKeys) || permissionKeys.length === 0) {
+            return res.status(400).json({ message: "roleId ve permissionKeys (array) gereklidir." });
+        }
+        const Roles = (await import("../db/models/roles.js")).default;
+        const role = await Roles.findById(roleId);
+        if (!role) {
+            return res.status(404).json({ message: "Rol bulunamadı." });
+        }
+        const permissions = await Permissions.find({ key: { $in: permissionKeys } });
+        if (permissions.length !== permissionKeys.length) {
+            return res.status(400).json({ message: "Bazı permission key'leri bulunamadı.", found: permissions.map(p => p.key) });
+        }
+        // Sadece yeni eklenenleri ekle
+        const newPermissionIds = permissions.map(p => p._id).filter(id => !role.permissions.includes(id));
+        role.permissions.push(...newPermissionIds);
+        await role.save();
+        const populatedRole = await Roles.findById(role._id).populate("permissions");
+        res.json(populatedRole);
+    } catch (err) {
+        res.status(500).json({ message: "Yetki eklenirken bir hata oluştu.", error: err.message });
+    }
+});
+
 export default router;

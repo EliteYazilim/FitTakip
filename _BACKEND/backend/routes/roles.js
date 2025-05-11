@@ -61,7 +61,7 @@ router.post("/", authMiddleware, checkPermission("role_add"), async (req, res) =
 });
 
 // Rol güncelle
-router.put("/:id", authMiddleware, checkPermission("role_update"), async (req, res) => {
+router.put("/:id", authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
         const { name, permissions } = req.body;
